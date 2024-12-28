@@ -6,6 +6,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import InfoIcon from "@mui/icons-material/Info";
 import ContactMailIcon from "@mui/icons-material/ContactMail";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
+import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 
 function Navbar({ user, setUser }) {
   useEffect(() => {
@@ -69,6 +70,15 @@ function Navbar({ user, setUser }) {
                 >
                   <AccountCircleIcon />
                   <span>Profile</span>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/pricing"
+                  className="flex items-center space-x-2 text-white hover:text-gray-300"
+                >
+                  <AttachMoneyIcon style={{ fontSize: "30px" }} />
+                  <span>Pricing</span>
                 </Link>
               </li>
               <li>

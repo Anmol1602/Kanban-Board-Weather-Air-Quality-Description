@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AirQualityCard from './AirQualityCard';
 
-const AirQualityDetails = () => {
+const AirQualityDetails = ({ user }) => {
   const [airQualityData, setAirQualityData] = useState({
     current: null,
     forecast: [],
@@ -15,6 +15,13 @@ const AirQualityDetails = () => {
 
   const weatherbitApiKey = 'a4546b52e92c4b85a750828240e5a227';
 
+  useEffect(() => {
+    // Automatically reset selectedOption if user.subscription changes to free
+    if (user && user.subscription === 'free') {
+      setSelectedOption('current'); // Reset to current as 'historical' and 'forecast' are premium
+    }
+  }, [user]);
+
   const handleFetchAirQualityData = async () => {
     setError(null);
     setAirQualityData({ current: null, forecast: [], historical: [] });
@@ -24,8 +31,16 @@ const AirQualityDetails = () => {
       if (selectedOption === 'current') {
         url = `https://api.weatherbit.io/v2.0/current/airquality?city=${city}&key=${weatherbitApiKey}`;
       } else if (selectedOption === 'forecast') {
+        if (user.subscription === 'free') {
+          setError('Air quality forecast is not available for free users.');
+          return;
+        }
         url = `https://api.weatherbit.io/v2.0/forecast/airquality?city=${city}&key=${weatherbitApiKey}`;
       } else if (selectedOption === 'historical' && startDate && endDate) {
+        if (user.subscription === 'free') {
+          setError('Historical air quality data is not available for free users.');
+          return;
+        }
         url = `https://api.weatherbit.io/v2.0/history/airquality?city=${city}&start_date=${startDate}&end_date=${endDate}&key=${weatherbitApiKey}`;
       } else {
         setError('Please provide valid inputs.');
@@ -57,18 +72,29 @@ const AirQualityDetails = () => {
       {error && <div className="text-red-500 mb-4">{error}</div>}
 
       <div className="mb-4">
-      <select
-  value={selectedOption}
-  onChange={(e) => setSelectedOption(e.target.value)}
-  className="p-2 border border-gray-300 rounded max-w-xs w-full"
-
->
-  <option value="current">Current Air Quality</option>
-  <option value="historical">Historical Air Quality</option>
-  <option value="forecast">Air Quality Forecast</option>
-
-</select>
-
+        <select
+          value={selectedOption}
+          onChange={(e) => setSelectedOption(e.target.value)}
+          className="p-2 border border-gray-300 rounded max-w-xs w-full"
+        >
+          <option value="current">Current Air Quality</option>
+          {user && user.subscription !== 'free' && (
+            <>
+              <option value="historical">Historical Air Quality</option>
+              <option value="forecast">Air Quality Forecast</option>
+            </>
+          )}
+          {user && user.subscription === 'free' && (
+            <>
+              <option disabled value="historical">
+                Historical Air Quality (Premium Only)
+              </option>
+              <option disabled value="forecast">
+                Air Quality Forecast (Premium Only)
+              </option>
+            </>
+          )}
+        </select>
 
         <input
           type="text"
@@ -117,10 +143,9 @@ const AirQualityDetails = () => {
             <AirQualityCard
               key={index}
               title={`Air Quality (${forecast.timestamp_local})`}
-              timestamp={forecast.timestamp_local} // Pass the timestamp here
+              timestamp={forecast.timestamp_local}
               aqi={forecast.aqi}
               pollutants={forecast}
-              
             />
           ))}
 
@@ -129,7 +154,7 @@ const AirQualityDetails = () => {
             <AirQualityCard
               key={index}
               title="Historical Air Quality"
-              timestamp={data.timestamp_local} // Pass the timestamp here
+              timestamp={data.timestamp_local}
               aqi={data.aqi}
               pollutants={data}
             />

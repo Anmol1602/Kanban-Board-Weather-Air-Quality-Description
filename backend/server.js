@@ -225,6 +225,97 @@ app.post('/submit', (req, res) => {
     });
 });
 
+// Store active OTPs temporarily for validation
+let activeOtps = {};
+
+// Endpoint to send OTP
+app.post('/send-otp', (req, res) => {
+    const { email, subscription } = req.body;
+    console.log('Incoming OTP request:', { email, subscription });
+
+    if (!email || !subscription) {
+        return res.status(400).send('Missing required fields');
+    }
+
+    if (subscription !== 'year') {
+        return res.status(400).send('OTP is required only for changing to the 1-year plan');
+    }
+
+    const otp = otpGenerator.generate(6, { upperCase: false, specialChars: false });
+    activeOtps[email] = otp;
+
+    console.log(`Generated OTP for ${email}: ${otp}`);
+
+    // Send OTP via email
+    const mailOptions = {
+        from: 'your-email@gmail.com', // Sender's email address
+        to: email, // Recipient's email address
+        subject: 'Your OTP Code',
+        text: `Your OTP code is: ${otp}. This code is valid for 5 minutes.`,
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+            console.error('Error sending email:', error);
+            return res.status(500).send('Failed to send OTP email');
+        }
+
+        console.log('Email sent:', info.response);
+
+        // Remove OTP after 5 minutes
+        setTimeout(() => {
+            delete activeOtps[email];
+        }, 5 * 60 * 1000);
+
+        res.status(200).send('OTP sent successfully');
+    });
+});
+
+
+
+// Endpoint to validate OTP and update subscription
+// amazonq-ignore-next-line
+app.post('/validate-otp', (req, res) => {
+    const { email, otp, subscription } = req.body;
+    if (!email || !otp || !subscription) {
+        return res.status(400).send('Missing required fields');
+    }
+
+    // Validate OTP
+    if (activeOtps[email] !== otp) {
+        return res.status(400).send('Invalid OTP');
+    }
+
+    // OTP is valid, update user subscription
+    fs.readFile(DATA_FILE_USER, (err, data) => {
+        if (err) {
+            return res.status(500).send('Internal server error');
+        }
+
+        const users = JSON.parse(data);
+        const userIndex = users.findIndex((user) => user.email === email);
+
+        if (userIndex === -1) {
+            return res.status(404).send('User not found');
+        }
+
+        // Update subscription to 'year' and set expiry date
+        users[userIndex].subscription = subscription;
+        if (subscription === 'year') {
+            users[userIndex].subscriptionExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year
+        }
+
+        fs.writeFile(DATA_FILE_USER, JSON.stringify(users, null, 2), (err) => {
+            if (err) {
+                return res.status(500).send('Error saving user data');
+            }
+
+            res.json(users[userIndex]);
+        });
+    });
+});
+
+
 app.listen(PORT, () => {
     logger.info(`Server is running on http://localhost:${PORT}`);
 });

@@ -15,7 +15,7 @@ import AirQualityDetails from './components/AirQualityDetails';
 import WeatherDetails from './components/WeatherDetails';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-
+import PricingPage from './components/Pricing';
 function App() {
   const [user, setUser] = useState(null); // Manage user state (null means not logged in)
 
@@ -32,6 +32,7 @@ function App() {
             <Route path="/signup" element={<SignUpPage setUser={setUser} />} />
             <Route path="/login" element={<LoginPage setUser={setUser} />} />
             <Route path="/profile" element={<UserProfile user={user} setUser={setUser} />} />
+            <Route path="/pricing" element={<PricingPage user={user} setUser={setUser} />} />
             {/* Make sure to add the wildcard "*" for nested routes */}
             <Route path="/kanban/*" element={<KanbanBoard />} >
               <Route path="weather" element={<WeatherDetails />} />

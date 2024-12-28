@@ -1,8 +1,7 @@
-// src/components/WeatherDetails.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import WeatherTimeCard from './WeatherTimeCard';
 
-const WeatherDetails = () => {
+const WeatherDetails = ({ user }) => {
   const [weatherData, setWeatherData] = useState({
     currentWeather: null,
     historicalWeather: [],
@@ -19,7 +18,19 @@ const WeatherDetails = () => {
 
   const weatherbitApiKey = 'a4546b52e92c4b85a750828240e5a227';
 
+  // Debugging: Log user and subscription state to verify changes
+  useEffect(() => {
+    if (user?.subscription === 'free') {
+      setSelectedOption('current');
+    }
+  }, [user]);
+
   const handleFetchWeatherData = async () => {
+    if (!user) {
+      setError('User is not authenticated.');
+      return;
+    }
+
     setError(null); // Clear previous errors
     setWeatherData({ currentWeather: null, historicalWeather: [], forecast: [] }); // Reset weather data
 
@@ -42,34 +53,42 @@ const WeatherDetails = () => {
           setError('No current weather data found.');
         }
       } else if (selectedOption === 'historical') {
-        if (lat && lon && startDay && endDay) {
-          const response = await fetch(
-            `https://api.weatherbit.io/v2.0/normals?lat=${lat}&lon=${lon}&start_day=${startDay}&end_day=${endDay}&tp=daily&key=${weatherbitApiKey}`
-          );
-          const data = await response.json();
-          setWeatherData((prev) => ({
-            ...prev,
-            historicalWeather: data.data || [],
-          }));
+        if (user.subscription !== 'free') {
+          if (lat && lon && startDay && endDay) {
+            const response = await fetch(
+              `https://api.weatherbit.io/v2.0/normals?lat=${lat}&lon=${lon}&start_day=${startDay}&end_day=${endDay}&tp=daily&key=${weatherbitApiKey}`
+            );
+            const data = await response.json();
+            setWeatherData((prev) => ({
+              ...prev,
+              historicalWeather: data.data || [],
+            }));
+          } else {
+            setError('Please provide the necessary inputs for historical data.');
+          }
         } else {
-          setError('Please provide the necessary inputs for historical data.');
+          setError('Historical data is not available for free users.');
         }
       } else if (selectedOption === 'forecast') {
-        const cityQuery = city && country ? `${city},${country}` : city;
-        const queryString = cityQuery
-          ? `&city=${encodeURIComponent(cityQuery)}`
-          : `&lat=${lat}&lon=${lon}`;
-        const response = await fetch(
-          `https://api.weatherbit.io/v2.0/forecast/daily?key=${weatherbitApiKey}${queryString}`
-        );
-        const data = await response.json();
-        if (data.data && data.data.length > 0) {
-          setWeatherData((prev) => ({
-            ...prev,
-            forecast: data.data,
-          }));
+        if (user.subscription !== 'free') {
+          const cityQuery = city && country ? `${city},${country}` : city;
+          const queryString = cityQuery
+            ? `&city=${encodeURIComponent(cityQuery)}`
+            : `&lat=${lat}&lon=${lon}`;
+          const response = await fetch(
+            `https://api.weatherbit.io/v2.0/forecast/daily?key=${weatherbitApiKey}${queryString}`
+          );
+          const data = await response.json();
+          if (data.data && data.data.length > 0) {
+            setWeatherData((prev) => ({
+              ...prev,
+              forecast: data.data,
+            }));
+          } else {
+            setError('No forecast data found.');
+          }
         } else {
-          setError('No forecast data found.');
+          setError('Forecast data is not available for free users.');
         }
       } else {
         setError('Invalid option selected.');
@@ -91,8 +110,22 @@ const WeatherDetails = () => {
           style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}
         >
           <option value="current">Current Weather</option>
-          <option value="historical">Historical Weather for 1920-2020</option>
-          <option value="forecast">Forecast for next 16 days</option>
+          {user && user.subscription !== 'free' && (
+            <>
+              <option value="historical">Historical Weather for 1920-2020</option>
+              <option value="forecast">Forecast for next 16 days</option>
+            </>
+          )}
+          {user && user.subscription === 'free' && (
+            <>
+              <option disabled value="historical">
+                Historical Weather (Premium Only)
+              </option>
+              <option disabled value="forecast">
+                Forecast (Premium Only)
+              </option>
+            </>
+          )}
         </select>
 
         {selectedOption === 'forecast' || selectedOption === 'current' ? (
